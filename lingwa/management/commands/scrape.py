@@ -57,7 +57,7 @@ def get_responce():
                         img_parse_url = img_parse_url._replace(scheme=parse_url.scheme)
                     if not img_parse_url.netloc:
                         img_parse_url = img_parse_url._replace(netloc=parse_url.netloc)
-                    image = Image(img_parse_url.geturl())
+                    image = Image(src=img_parse_url.geturl())
                     image.save()
                 if img['alt'].strip():
                     save_utterance(language, img['alt'])
@@ -74,9 +74,17 @@ def get_responce():
 
             links = set()
             for a in soup.find_all('a', href=True):
-                links.add(a['href'])
-                if a.get_text().strip():
-                    save_utterance(language, a.get_text())
+                if a['href'].strip():
+                    link_parse_url = urlparse(a['href'])
+                    if not link_parse_url.scheme:
+                        link_parse_url = link_parse_url._replace(scheme=parse_url.scheme)
+                    if not link_parse_url.netloc:
+                        link_parse_url = link_parse_url._replace(netloc=parse_url.netloc)
+                    links.add(link_parse_url.geturl())
+                    link_url = Url(url=link_parse_url.geturl())
+                    link_url.save()
+                    if a.get_text().strip():
+                        save_utterance(language, a.get_text())
 
             #url.last_read = date
             #url.save()
