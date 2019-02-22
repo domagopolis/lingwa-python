@@ -42,6 +42,7 @@ def get_responce():
 
         if response is not None:
             soup = BeautifulSoup(response, 'html.parser')
+            parse_url = urlparse(url.url)
 
             html = soup.find('html')
             language = Language.objects.all().filter(iso2letter=html['lang']).first()
@@ -51,10 +52,12 @@ def get_responce():
 
             for img in soup.find_all('img', src=True):
                 if img['src'].strip():
-                    parse_url = urlparse(img['src'])
-                    if parse_url.scheme is None:
-                        parse_url.scheme = 'https'
-                    image = Image(src=img['src'])
+                    img_parse_url = urlparse(img['src'])
+                    if not img_parse_url.scheme:
+                        img_parse_url = img_parse_url._replace(scheme=parse_url.scheme)
+                    if not img_parse_url.netloc:
+                        img_parse_url = img_parse_url._replace(netloc=parse_url.netloc)
+                    image = Image(img_parse_url.geturl())
                     image.save()
                 if img['alt'].strip():
                     save_utterance(language, img['alt'])
