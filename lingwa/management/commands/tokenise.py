@@ -12,7 +12,7 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **options):
-        utterences = Utterence.objects.all()
+        utterences = Utterence.objects.all().filter(tokenised=False)
         for utterence in utterences:
             for word in utterence.utterence.split(' '):
                 if word.strip():
@@ -22,3 +22,6 @@ class Command(BaseCommand):
                     else:
                         keyword = Keyword(language=utterence.language, keyword=word)
                     keyword.save()
+
+            utterence.tokenised = True
+            utterence.save()

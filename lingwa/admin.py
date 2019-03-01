@@ -3,16 +3,28 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 
-from .models import Url, Image, Language, Utterence, Keyword, KeywordUrl, LexicalDefinition, LexicalClass
+from .models import Language, Url, Image, Utterence, UtterenceUrl, UtterenceImage, Keyword, KeywordUrl, KeywordImage, LexicalDefinition, LexicalClass
+
+class LanguageAdmin(admin.ModelAdmin):
+
+    list_display = ['name', 'iso2letter', 'iso3letter', 'popular', 'active']
+    list_filter = ['popular', 'active']
+    search_fields = ['name', 'iso2letter', 'iso3letter']
+    ordering = ['name']
+
+admin.site.register(Language, LanguageAdmin)
 
 class UrlAdmin(admin.ModelAdmin):
 
     fieldsets = [
-        (None, {'fields': ['url', 'active']}),
+        (None, {'fields': ['url', 'language', 'active']}),
     ]
 
-    list_display = ['url', 'last_read']
+    list_display = ['url', 'language', 'active', 'last_read']
+    list_filter = ['language']
     search_fields = ['url']
+    ordering = ['-last_read']
+    list_per_page = 300
 
 admin.site.register(Url, UrlAdmin)
 
@@ -22,23 +34,17 @@ class ImageAdmin(admin.ModelAdmin):
 
 admin.site.register(Image, ImageAdmin)
 
-class LanguageAdmin(admin.ModelAdmin):
-
-    list_display = ['name', 'iso2letter', 'iso3letter', 'popular', 'active']
-    search_fields = ['name', 'iso2letter']
-
-admin.site.register(Language, LanguageAdmin)
-
 class UtterenceAdmin(admin.ModelAdmin):
 
     fieldsets = [
         (None, {'fields': ['language', 'utterence']}),
     ]
 
-    list_display = ['utterence', 'language', 'count']
-    list_filter = ['language']
+    list_display = ['utterence', 'language', 'tokenised', 'count']
+    list_filter = ['tokenised', 'language']
     search_fields = ['utterence']
     ordering = ['-count']
+    list_per_page = 300
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         if db_field.name == "translations" and getattr(self, 'obj', None):
@@ -46,6 +52,18 @@ class UtterenceAdmin(admin.ModelAdmin):
         return super(UtterenceAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 admin.site.register(Utterence, UtterenceAdmin)
+
+class UtterenceUrlAdmin(admin.ModelAdmin):
+
+    search_fields = ['utterence']
+
+admin.site.register(UtterenceUrl, UtterenceUrlAdmin)
+
+class UtterenceImageAdmin(admin.ModelAdmin):
+
+    search_fields = ['utterence']
+
+admin.site.register(UtterenceImage, UtterenceImageAdmin)
 
 class LexicalDefinitionInline(admin.StackedInline):
     model = Keyword.lexical_definitions.through
@@ -72,14 +90,9 @@ class KeywordAdmin(admin.ModelAdmin):
     list_filter = ['language']
     search_fields = ['keyword']
     ordering = ['-count']
+    list_per_page = 300
 
 admin.site.register(Keyword, KeywordAdmin)
-
-class KeywordUrlAdmin(admin.ModelAdmin):
-
-    search_fields = ['keyword']
-
-admin.site.register(KeywordUrl)
 
 class LexicalDefinitionAdmin(admin.ModelAdmin):
 

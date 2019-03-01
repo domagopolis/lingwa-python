@@ -3,9 +3,10 @@ from requests.exceptions import RequestException
 from contextlib import closing
 from bs4 import BeautifulSoup
 from urlparse import urlparse
+from datetime import datetime
 
 from django.core.management.base import BaseCommand, CommandError
-from lingwa.models import Url, Image, Utterence, Keyword, Language
+from lingwa.models import Url, Image, Utterence, UtterenceUrl, UtterenceImage, Keyword, Language
 
 def log_error(e):
     print(e)
@@ -32,11 +33,28 @@ def save_utterance(language, text):
         utterence.count += 1;
     else:
         utterence = Utterence(language=language, utterence=text)
+    utterence.save()
 
-    return utterence.save()
+    return utterence
+
+def save_utterance_to_url(language, text, url):
+    utterence = save_utterance(language, text)
+
+    utterence_url = UtterenceUrl(utterence=utterence, url=url)
+    utterence_url.save()
+
+    return utterence_url
+
+def save_utterance_to_image(language, text, image):
+    utterence = save_utterance(language, text)
+
+    utterence_image = UtterenceImage(utterence=utterence, image=image)
+    utterence_image.save()
+
+    return utterence_image
 
 def get_responce():
-    url = Url.objects.all().filter(active=True).first()
+    url = Url.objects.all().filter(last_read__isnull=True, active=True).first()
     if url is not None:
         response = simple_get(url.url)
 
@@ -48,31 +66,38 @@ def get_responce():
             language = Language.objects.all().filter(iso2letter=html['lang']).first()
 
             title = soup.find('title')
-            save_utterance(language, title.get_text().strip())
+            save_utterance_to_url(language, title.get_text().strip(), url)
 
-            for img in soup.find_all('img', src=True):
+            for img in soup.find_all('img', src=True, alt=True):
                 if img['src'].strip():
                     img_parse_url = urlparse(img['src'])
                     if not img_parse_url.scheme:
                         img_parse_url = img_parse_url._replace(scheme=parse_url.scheme)
                     if not img_parse_url.netloc:
                         img_parse_url = img_parse_url._replace(netloc=parse_url.netloc)
-                    image = Image(src=img_parse_url.geturl())
-                    image.save()
-                if img['alt'].strip():
-                    save_utterance(language, img['alt'])
+
+                    image = Image.objects.all().filter(src=img_parse_url.geturl()).first()
+                    if not image:
+                        image = Image(src=img_parse_url.geturl())
+                        image.save()
+
+                    if img['alt'].strip():
+                        save_utterance_to_image(language, img['alt'], image)
 
             heading_tags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
             for heading_tag in heading_tags:
                 for heading in soup.find_all(heading_tag):
                     if heading.get_text().strip():
-                        save_utterance(language, heading.get_text())
+                        save_utterance_to_url(language, heading.get_text(), url)
 
             for p in soup.find_all('p'):
                 if p.get_text().strip():
-                    save_utterance(language, p.get_text())
+                    save_utterance_to_url(language, p.get_text(), url)
 
-            links = set()
+            for li in soup.find_all('li'):
+                if li.get_text().strip():
+                    save_utterance_to_url(language, li.get_text(), url)
+
             for a in soup.find_all('a', href=True):
                 if a['href'].strip():
                     link_parse_url = urlparse(a['href'])
@@ -80,16 +105,18 @@ def get_responce():
                         link_parse_url = link_parse_url._replace(scheme=parse_url.scheme)
                     if not link_parse_url.netloc:
                         link_parse_url = link_parse_url._replace(netloc=parse_url.netloc)
-                    links.add(link_parse_url.geturl())
-                    link_url = Url(url=link_parse_url.geturl())
-                    link_url.save()
+
+                    link_url = Url.objects.all().filter(url=link_parse_url.geturl()).first()
+                    if not link_url:
+                        link_url = Url(url=link_parse_url.geturl())
+                        link_url.save()
+
                     if a.get_text().strip():
-                        save_utterance(language, a.get_text())
+                        save_utterance_to_url(language, a.get_text(), url)
 
-            #url.last_read = date
-            #url.save()
-
-            return list(links)
+            url.language = language
+            url.last_read = datetime.now()
+            url.save()
 
 class Command(BaseCommand):
     help = 'Read those sites'
@@ -98,12 +125,4 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **options):
-        links = get_responce()
-
-        if links is not None:
-            results = []
-            for link in links:
-                try:
-                    print(link)
-                except:
-                    log_error('Skipping:'.format(link))
+        get_responce()
