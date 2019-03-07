@@ -4,7 +4,6 @@ from contextlib import closing
 from bs4 import BeautifulSoup
 from urlparse import urlparse
 from datetime import datetime
-import sys
 
 from django.core.management.base import BaseCommand, CommandError
 from lingwa.models import Url, Image, Utterence, UtterenceUrl, UtterenceImage, Keyword, Language
