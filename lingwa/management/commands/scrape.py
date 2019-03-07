@@ -4,6 +4,7 @@ from contextlib import closing
 from bs4 import BeautifulSoup
 from urlparse import urlparse
 from datetime import datetime
+import sys
 
 from django.core.management.base import BaseCommand, CommandError
 from lingwa.models import Url, Image, Utterence, UtterenceUrl, UtterenceImage, Keyword, Language
@@ -53,8 +54,12 @@ def save_utterance_to_image(language, text, image):
 
     return utterence_image
 
-def get_responce():
-    url = Url.objects.all().filter(last_read__isnull=True, active=True).first()
+def get_responce(url_address):
+    if url_address:
+        url = Url.objects.all().filter(url=url_address, last_read__isnull=True, active=True).first()
+    else:
+        url = Url.objects.all().filter(last_read__isnull=True, active=True).first()
+
     if url is not None:
         response = simple_get(url.url)
 
@@ -121,8 +126,8 @@ def get_responce():
 class Command(BaseCommand):
     help = 'Read those sites'
 
-    def add_argument(self, parser):
-        pass
+    def add_arguments(self, parser):
+        parser.add_argument('--url', type=str)
 
     def handle(self, *args, **options):
-        get_responce()
+        get_responce(options['url'])
